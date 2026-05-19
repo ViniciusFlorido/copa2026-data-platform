@@ -1,0 +1,32 @@
+# Ambiente
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Dados brutos (não versionar dados no GitHub)
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+*.parquet
+*.duckdb
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# MLflow
+mlruns/
+
+# IDEs
+.vscode/
+.idea/
+*.DS_Store
+
+# dbt
+target/
+dbt_packages/
+logs/

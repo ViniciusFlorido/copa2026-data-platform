@@ -1,0 +1,50 @@
+name: Pipeline Diário — Copa 2026
+
+on:
+  # Roda todo dia às 23h (horário de Brasília = 02:00 UTC)
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Permite rodar manualmente pelo GitHub
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Data alvo (YYYY-MM-DD). Deixe vazio para usar hoje."
+        required: false
+        default: ""
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configura Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instala dependências
+        run: pip install requests python-dotenv
+
+      - name: Roda ingestão diária
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          WORLD_CUP_LEAGUE_ID: ${{ secrets.WORLD_CUP_LEAGUE_ID }}
+          WORLD_CUP_SEASON: "2026"
+        run: |
+          DATE_ARG="${{ github.event.inputs.target_date }}"
+          if [ -n "$DATE_ARG" ]; then
+            python src/ingestion/fetch_matches.py "$DATE_ARG"
+          else
+            python src/ingestion/fetch_matches.py
+          fi
+
+      - name: Salva raw como artifact do GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-${{ github.run_id }}
+          path: data/raw/
+          retention-days: 90

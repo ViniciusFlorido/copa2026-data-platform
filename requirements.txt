@@ -1,0 +1,32 @@
+# ── Ingestão e HTTP ──────────────────────────────
+requests==2.31.0
+python-dotenv==1.0.0
+
+# ── Processamento de dados ───────────────────────
+pandas
+pyarrow
+duckdb
+numpy
+
+# ── Pipeline / dbt ───────────────────────────────
+dbt-core
+dbt-duckdb
+
+# ── Machine Learning ─────────────────────────────
+scikit-learn
+xgboost
+lightgbm
+mlflow
+
+# ── Visualização ─────────────────────────────────
+streamlit
+plotly
+mplsoccer
+matplotlib
+altair
+
+# ── Qualidade de dados ───────────────────────────
+great-expectations
+
+# ── Agendamento ──────────────────────────────────
+schedule
