@@ -30,3 +30,12 @@ mlruns/
 target/
 dbt_packages/
 logs/
+
+# Modelos treinados (arquivos grandes)
+models/*.json
+models/*.txt
+models/*.png
+
+# MLflow
+mlflow.db
+mlruns/
