@@ -12,10 +12,15 @@ on:
         description: "Data alvo (YYYY-MM-DD). Deixe vazio para usar hoje."
         required: false
         default: ""
+      season:
+        description: "Season da Copa (2022 para testes, 2026 para ao vivo)"
+        required: false
+        default: "2026"
 
 jobs:
-  ingest:
+  pipeline:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
@@ -27,13 +32,21 @@ jobs:
           cache: "pip"
 
       - name: Instala dependências
-        run: pip install requests python-dotenv
+        run: |
+          pip install requests python-dotenv pandas pyarrow \
+                      dbt-core dbt-duckdb scikit-learn xgboost \
+                      lightgbm mlflow schedule kaggle
 
-      - name: Roda ingestão diária
+      # ── ETAPA 1 — INGESTÃO ──────────────────────────────────
+      - name: "Etapa 1 — Ingestão diária (API-Football)"
         env:
-          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-          WORLD_CUP_LEAGUE_ID: ${{ secrets.WORLD_CUP_LEAGUE_ID }}
-          WORLD_CUP_SEASON: "2026"
+          API_FOOTBALL_KEY:      ${{ secrets.API_FOOTBALL_KEY }}
+          WORLD_CUP_LEAGUE_ID:   "1"
+          WORLD_CUP_SEASON:      ${{ github.event.inputs.season || '2026' }}
+          RAW_PATH:              data/raw
+          BRONZE_PATH:           data/bronze
+          SILVER_PATH:           data/silver
+          GOLD_PATH:             data/gold
         run: |
           DATE_ARG="${{ github.event.inputs.target_date }}"
           if [ -n "$DATE_ARG" ]; then
@@ -42,9 +55,40 @@ jobs:
             python src/ingestion/fetch_matches.py
           fi
 
-      - name: Salva raw como artifact do GitHub
+      # ── ETAPA 2 — BRONZE ────────────────────────────────────
+      - name: "Etapa 2 — Pipeline Bronze"
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python src/pipeline/bronze.py
+
+      # ── ETAPA 3 — SILVER ────────────────────────────────────
+      - name: "Etapa 3 — Pipeline Silver"
+        run: python src/pipeline/silver.py
+
+      # ── ETAPA 4 — GOLD ──────────────────────────────────────
+      - name: "Etapa 4 — Pipeline Gold"
+        run: python src/pipeline/gold.py
+
+      # ── ETAPA 5 — MODELOS ML ────────────────────────────────
+      - name: "Etapa 5 — Retreina modelos ML"
+        run: |
+          python src/models/xg_model.py
+          python src/models/prediction_model.py
+          python src/models/clustering.py
+
+      # ── SALVA ARTEFATOS ─────────────────────────────────────
+      - name: Salva dados processados como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: raw-${{ github.run_id }}
-          path: data/raw/
-          retention-days: 90
+          name: pipeline-output-${{ github.run_id }}
+          path: |
+            data/gold/
+            models/
+          retention-days: 30
+
+      # ── NOTIFICAÇÃO DE SUCESSO ──────────────────────────────
+      - name: Pipeline concluído
+        run: |
+          echo "✅ Pipeline Copa 2026 concluído com sucesso!"
+          echo "   Data: $(date)"
+          echo "   Artefatos salvos por 30 dias"
